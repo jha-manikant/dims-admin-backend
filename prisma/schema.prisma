@@ -1,0 +1,114 @@
+// DIMS Admin Portal — Prisma schema for MS SQL Server.
+//
+// The authoritative DDL lives in `src/db/migrations/001_init.sql`. This file
+// exists so `prisma generate` can produce a fully typed client over the same
+// tables; Prisma's MS SQL Server provider can't express every feature we need
+// (filtered unique indexes, NEWSEQUENTIALID), so we manage migrations
+// ourselves via `scripts/apply-raw-sql.ts`.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model DIMSAdminUser {
+  id              String    @id(map: "PK_DIMSAdminUsers") @default(dbgenerated("NEWSEQUENTIALID()")) @map("Id") @db.UniqueIdentifier
+  googleId        String    @map("GoogleId") @db.NVarChar(255)
+  email           String    @map("Email") @db.NVarChar(320)
+  dimsUserId      String?   @map("DIMSUserId") @db.NVarChar(255)
+  firstName       String?   @map("FirstName") @db.NVarChar(100)
+  lastName        String?   @map("LastName") @db.NVarChar(100)
+  profileImageUrl String?   @map("ProfileImageUrl") @db.NVarChar(2048)
+  isActive        Boolean   @default(true) @map("IsActive") @db.Bit
+  lastLoginAt     DateTime? @map("LastLoginAt") @db.DateTime2
+  createdAt       DateTime  @default(dbgenerated("SYSUTCDATETIME()")) @map("CreatedAt") @db.DateTime2
+  updatedAt       DateTime  @default(dbgenerated("SYSUTCDATETIME()")) @map("UpdatedAt") @db.DateTime2
+  deletedAt       DateTime? @map("DeletedAt") @db.DateTime2
+
+  roles         DIMSAdminUserRole[] @relation("UserRoles")
+  grantedRoles  DIMSAdminUserRole[] @relation("RoleGranter")
+  auditLogs     DIMSAdminAuditLog[]
+
+  @@map("DIMSAdminUsers")
+}
+
+model DIMSAdminRole {
+  id           String    @id(map: "PK_DIMSAdminRoles") @default(dbgenerated("NEWSEQUENTIALID()")) @map("Id") @db.UniqueIdentifier
+  name         String    @map("Name") @db.NVarChar(100)
+  description  String?   @map("Description") @db.NVarChar(500)
+  isSystemRole Boolean   @default(false) @map("IsSystemRole") @db.Bit
+  isActive     Boolean   @default(true) @map("IsActive") @db.Bit
+  createdAt    DateTime  @default(dbgenerated("SYSUTCDATETIME()")) @map("CreatedAt") @db.DateTime2
+  updatedAt    DateTime  @default(dbgenerated("SYSUTCDATETIME()")) @map("UpdatedAt") @db.DateTime2
+  deletedAt    DateTime? @map("DeletedAt") @db.DateTime2
+
+  permissions DIMSAdminRolePermission[]
+  users       DIMSAdminUserRole[]
+
+  @@map("DIMSAdminRoles")
+}
+
+model DIMSAdminPermission {
+  id            String    @id(map: "PK_DIMSAdminPermissions") @default(dbgenerated("NEWSEQUENTIALID()")) @map("Id") @db.UniqueIdentifier
+  permissionKey String    @map("PermissionKey") @db.NVarChar(255)
+  category      String?   @map("Category") @db.NVarChar(100)
+  description   String?   @map("Description") @db.NVarChar(500)
+  isActive      Boolean   @default(true) @map("IsActive") @db.Bit
+  createdAt     DateTime  @default(dbgenerated("SYSUTCDATETIME()")) @map("CreatedAt") @db.DateTime2
+  updatedAt     DateTime  @default(dbgenerated("SYSUTCDATETIME()")) @map("UpdatedAt") @db.DateTime2
+  deletedAt     DateTime? @map("DeletedAt") @db.DateTime2
+
+  roles DIMSAdminRolePermission[]
+
+  @@map("DIMSAdminPermissions")
+}
+
+model DIMSAdminRolePermission {
+  roleId       String   @map("RoleId") @db.UniqueIdentifier
+  permissionId String   @map("PermissionId") @db.UniqueIdentifier
+  createdAt    DateTime @default(dbgenerated("SYSUTCDATETIME()")) @map("CreatedAt") @db.DateTime2
+
+  role       DIMSAdminRole       @relation(fields: [roleId], references: [id], onUpdate: NoAction, onDelete: NoAction, map: "FK_DIMSAdminRolePermissions_Role")
+  permission DIMSAdminPermission @relation(fields: [permissionId], references: [id], onUpdate: NoAction, onDelete: NoAction, map: "FK_DIMSAdminRolePermissions_Permission")
+
+  @@id([roleId, permissionId], map: "PK_DIMSAdminRolePermissions")
+  @@map("DIMSAdminRolePermissions")
+}
+
+model DIMSAdminUserRole {
+  userId     String   @map("UserId") @db.UniqueIdentifier
+  roleId     String   @map("RoleId") @db.UniqueIdentifier
+  assignedAt DateTime @default(dbgenerated("SYSUTCDATETIME()")) @map("AssignedAt") @db.DateTime2
+  assignedBy String?  @map("AssignedBy") @db.UniqueIdentifier
+
+  user    DIMSAdminUser  @relation("UserRoles", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction, map: "FK_DIMSAdminUserRoles_User")
+  role    DIMSAdminRole  @relation(fields: [roleId], references: [id], onUpdate: NoAction, onDelete: NoAction, map: "FK_DIMSAdminUserRoles_Role")
+  granter DIMSAdminUser? @relation("RoleGranter", fields: [assignedBy], references: [id], onUpdate: NoAction, onDelete: NoAction, map: "FK_DIMSAdminUserRoles_AssignedBy")
+
+  @@id([userId, roleId], map: "PK_DIMSAdminUserRoles")
+  @@map("DIMSAdminUserRoles")
+}
+
+model DIMSAdminAuditLog {
+  id         BigInt   @id(map: "PK_DIMSAdminAuditLogs") @default(autoincrement()) @map("Id")
+  requestId  String?  @map("RequestId") @db.NVarChar(64)
+  userId     String?  @map("UserId") @db.UniqueIdentifier
+  action     String   @map("Action") @db.NVarChar(255)
+  entityType String?  @map("EntityType") @db.NVarChar(255)
+  entityId   String?  @map("EntityId") @db.NVarChar(255)
+  oldValues  String?  @map("OldValues") @db.NVarChar(Max)
+  newValues  String?  @map("NewValues") @db.NVarChar(Max)
+  ipAddress  String?  @map("IpAddress") @db.NVarChar(45)
+  userAgent  String?  @map("UserAgent") @db.NVarChar(1024)
+  success    Boolean  @default(true) @map("Success") @db.Bit
+  createdAt  DateTime @default(dbgenerated("SYSUTCDATETIME()")) @map("CreatedAt") @db.DateTime2
+
+  user DIMSAdminUser? @relation(fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction, map: "FK_DIMSAdminAuditLogs_User")
+
+  @@map("DIMSAdminAuditLogs")
+}
