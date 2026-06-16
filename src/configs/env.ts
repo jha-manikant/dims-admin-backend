@@ -71,9 +71,18 @@ const schema = z.object({
   SERVICE_JWT_ISSUER: z.string().url(),
   SERVICE_JWT_AUDIENCE: z.string().min(1),
   SERVICE_JWT_TTL_SECONDS: intString(180),
-  SERVICE_JWT_PRIVATE_KEY_PATH: z.string().min(1),
-  SERVICE_JWT_PUBLIC_KEY_PATH: z.string().min(1),
   SERVICE_JWT_KEY_ID: z.string().min(1),
+
+  // Where the RS256 keypair comes from. `file` reads PEMs from disk (dev);
+  // `aws` fetches them from AWS Secrets Manager at boot (production). The
+  // fields required by each source are enforced in the superRefine below.
+  SERVICE_JWT_KEY_SOURCE: z.enum(['file', 'aws']).default('file'),
+  // Used when SERVICE_JWT_KEY_SOURCE=file (development):
+  SERVICE_JWT_PRIVATE_KEY_PATH: z.string().min(1).optional(),
+  SERVICE_JWT_PUBLIC_KEY_PATH: z.string().min(1).optional(),
+  // Used when SERVICE_JWT_KEY_SOURCE=aws (production):
+  SERVICE_JWT_KEYS_SECRET_ID: z.string().min(1).optional(), // Secrets Manager name or ARN
+  AWS_REGION: z.string().min(1).optional(), // required for the SDK in aws mode
 
   DIMS_API_BASE_URL: z.string().url(),
   DIMS_API_TIMEOUT_MS: intString(10_000),
@@ -81,6 +90,31 @@ const schema = z.object({
   PERMISSION_CACHE_TTL_SECONDS: intString(300),
 
   FEATURES: featuresSchema,
+}).superRefine((val, ctx) => {
+  // The service-JWT key source dictates which inputs are mandatory. Surface a
+  // readable, source-specific message at boot rather than failing later when
+  // the keystore tries to load.
+  if (val.SERVICE_JWT_KEY_SOURCE === 'file') {
+    for (const key of ['SERVICE_JWT_PRIVATE_KEY_PATH', 'SERVICE_JWT_PUBLIC_KEY_PATH'] as const) {
+      if (!val[key]) {
+        ctx.addIssue({
+          path: [key],
+          code: z.ZodIssueCode.custom,
+          message: 'required when SERVICE_JWT_KEY_SOURCE=file',
+        });
+      }
+    }
+  } else {
+    for (const key of ['SERVICE_JWT_KEYS_SECRET_ID', 'AWS_REGION'] as const) {
+      if (!val[key]) {
+        ctx.addIssue({
+          path: [key],
+          code: z.ZodIssueCode.custom,
+          message: 'required when SERVICE_JWT_KEY_SOURCE=aws',
+        });
+      }
+    }
+  }
 });
 
 export type Env = z.infer<typeof schema>;

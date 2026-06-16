@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "@aws-sdk/client-secrets-manager": "^3.1067.0",
     "@prisma/client": "^5.22.0",
     "connect-redis": "^7.1.1",
     "cors": "^2.8.5",
