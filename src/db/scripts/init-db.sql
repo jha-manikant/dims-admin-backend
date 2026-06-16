@@ -3,6 +3,22 @@
 -- Single-organization, RS256 service JWT, Google hd-restricted
 -- =============================================================
 
+-- -------------------------------------------------------------
+-- 0. Create the database if it does not already exist.
+--    Run this script from the `master` database context.
+-- -------------------------------------------------------------
+USE master;
+GO
+
+IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'DIMSAdmin')
+BEGIN
+    CREATE DATABASE [DIMSAdmin];
+END
+GO
+
+USE [DIMSAdmin];
+GO
+
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
 GO
