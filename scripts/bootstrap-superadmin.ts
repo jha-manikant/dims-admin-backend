@@ -65,6 +65,11 @@ async function main(): Promise<void> {
       },
     });
     console.log(`Granted SuperAdmin to ${email} (user id ${user.id}).`);
+    console.log(
+      'Restart the app (or wait up to ~5 min for the permission cache TTL) for this to take ' +
+        'effect — this CLI writes to the DB out-of-band and cannot clear the running server’s ' +
+        'in-memory permission cache.',
+    );
   } finally {
     await prisma.$disconnect();
   }

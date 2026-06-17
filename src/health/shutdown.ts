@@ -1,5 +1,5 @@
 import type { Server } from 'http';
-import { closeRedis } from '../cache/redis.js';
+// import { closeRedis } from '../cache/redis.js'; // Redis disabled — single-server deploy
 import { closePrisma } from '../db/prisma.js';
 import { logger } from '../utils/logger.js';
 
@@ -12,7 +12,7 @@ const SHUTDOWN_TIMEOUT_MS = 15_000;
  * Sequence:
  *  1. Stop accepting new connections (`server.close`).
  *  2. Wait for in-flight requests to finish, up to SHUTDOWN_TIMEOUT_MS.
- *  3. Close Prisma and Redis connections in parallel.
+ *  3. Close the Prisma connection.
  *  4. Exit 0.
  *
  * If anything hangs past the timeout, force-exit with code 1 — orchestrators
@@ -34,8 +34,9 @@ export function registerShutdownHandlers(server: Server): void {
 
     server.close((err) => {
       if (err) logger.error({ err }, 'server_close_error');
-      // allSettled so a single client's failure doesn't skip the other close.
-      Promise.allSettled([closePrisma(), closeRedis()])
+      // allSettled keeps the per-close error logging below; Redis close
+      // disabled (single-server deploy) — re-add closeRedis() here to restore.
+      Promise.allSettled([closePrisma()])
         .then((results) => {
           for (const result of results) {
             if (result.status === 'rejected') {

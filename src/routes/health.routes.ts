@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { pingRedis } from '../cache/redis.js';
+// import { pingRedis } from '../cache/redis.js'; // Redis disabled — single-server deploy
 import { pingPrisma } from '../db/prisma.js';
 
 export const healthRouter = Router();
@@ -13,18 +13,19 @@ healthRouter.get('/health', (_req: Request, res: Response) => {
 });
 
 /**
- * Readiness probe — 200 only when both the database and Redis are reachable.
+ * Readiness probe — 200 only when the database is reachable. (Redis check
+ * disabled for the single-server deployment; sessions now live in the DB, so
+ * the DB ping covers session-store readiness too.)
  */
 healthRouter.get('/ready', (req: Request, res: Response, next) => {
-  Promise.all([pingPrisma(500), pingRedis(500)])
-    .then(([dbOk, redisOk]) => {
-      const ok = dbOk && redisOk;
+  pingPrisma(500)
+    .then((dbOk) => {
       const body = {
-        status: ok ? 'ok' : 'degraded',
-        checks: { db: dbOk, redis: redisOk },
+        status: dbOk ? 'ok' : 'degraded',
+        checks: { db: dbOk },
         requestId: req.requestId,
       };
-      res.status(ok ? 200 : 503).json(body);
+      res.status(dbOk ? 200 : 503).json(body);
     })
     .catch(next);
 });

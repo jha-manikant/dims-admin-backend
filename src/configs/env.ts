@@ -58,8 +58,11 @@ const schema = z.object({
   CORS_ORIGINS: csvList,
 
   DATABASE_URL: z.string().min(1),
-  // Backs the session store, rate-limit counters, and the permission cache.
-  REDIS_URL: z.string().url(),
+  // Optional: Redis-backed stores are disabled for the single-server deploy
+  // (sessions live in the DB; rate-limit + permission cache are in-process).
+  // Kept optional so boot succeeds without it; required again only if you
+  // re-enable the Redis backends in session/rateLimit/permissionsCache.
+  REDIS_URL: z.string().url().optional(),
 
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 chars'),
   SESSION_COOKIE_NAME: z.string().min(1).default('dims_admin_session'),

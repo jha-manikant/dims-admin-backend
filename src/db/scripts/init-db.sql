@@ -154,6 +154,23 @@ CREATE INDEX IX_DIMSAdminAuditLogs_RequestId
 GO
 
 -- -------------------------------------------------------------
+-- 6b. DIMSAdminSessions   (express-session store, via Prisma)
+--     Replaces the former Redis-backed session store. Guarded so it is safe
+--     to apply to a database that already has it.
+-- -------------------------------------------------------------
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = N'DIMSAdminSessions')
+BEGIN
+    CREATE TABLE DIMSAdminSessions (
+        Sid       NVARCHAR(128) NOT NULL CONSTRAINT PK_DIMSAdminSessions PRIMARY KEY,
+        Data      NVARCHAR(MAX) NOT NULL,
+        ExpiresAt DATETIME2(3)  NOT NULL
+    );
+
+    CREATE INDEX IX_DIMSAdminSessions_ExpiresAt ON DIMSAdminSessions (ExpiresAt);
+END
+GO
+
+-- -------------------------------------------------------------
 -- 7. Seed: built-in permissions
 -- -------------------------------------------------------------
 INSERT INTO DIMSAdminPermissions (PermissionKey, Category, Description, IsActive) VALUES

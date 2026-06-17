@@ -11,7 +11,9 @@ let client: Redis | null = null;
  */
 export function getRedis(): Redis {
   if (!client) {
-    client = new Redis(env.REDIS_URL, {
+    // REDIS_URL is optional while the Redis backends are disabled; the fallback
+    // only keeps this (currently unused) singleton type-safe. See cache configs.
+    client = new Redis(env.REDIS_URL ?? 'redis://localhost:6379', {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
       lazyConnect: false,

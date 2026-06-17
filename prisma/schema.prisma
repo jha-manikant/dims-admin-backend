@@ -112,3 +112,14 @@ model DIMSAdminAuditLog {
 
   @@map("DIMSAdminAuditLogs")
 }
+
+// express-session store (custom Prisma-backed Store — see
+// src/middlewares/prismaSessionStore.ts). Replaces the former Redis-backed
+// session store for the single-server deployment. Keyed by the session id.
+model DIMSAdminSession {
+  sid       String   @id(map: "PK_DIMSAdminSessions") @map("Sid") @db.NVarChar(128)
+  data      String   @map("Data") @db.NVarChar(Max)
+  expiresAt DateTime @map("ExpiresAt") @db.DateTime2
+
+  @@map("DIMSAdminSessions")
+}

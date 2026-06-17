@@ -37,7 +37,7 @@ import { usersRouter } from './routes/users.routes.js';
  *   6. body parsers   — express.json / urlencoded
  *   7. health         — /health, /ready (kept BEFORE session so probes are infra-light)
  *   8. JWKS           — /.well-known/jwks.json + openid-configuration (no session)
- *   9. session        — express-session w/ Redis-backed store
+ *   9. session        — express-session w/ DB-backed store (Prisma/SQL Server)
  *  10. /api/v1 router — feature modules: auth, me, admin/{users,roles,permissions}, dims
  *  11. notFound       — 404 for anything unmatched
  *  12. errorHandler   — global error translator (4-arg signature)
@@ -58,7 +58,7 @@ export function createApp(): Express {
   app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 
   // Health + JWKS sit BEFORE the session middleware so probes / DIMS' JWKS
-  // fetcher never generate a session id and never touch Redis.
+  // fetcher never generate a session id (and never hit the session store).
   app.use(healthRouter);
   // /.well-known/* is rooted at the app, not under /api/v1 — JWKS discovery
   // is a fixed OIDC convention.
